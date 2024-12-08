@@ -43,7 +43,8 @@ async function main () {
   if (!fromTag) {
     // GET LATEST + PREVIOUS TAGS
 
-    const tagsRaw = await gh.graphql(`
+    const tagsRaw = await gh.graphql(
+      `
       query lastTags (
         $owner: String!
         $repo: String!
@@ -55,7 +56,7 @@ async function main () {
           ) {
           refs(
             first: $fetchLimit
-            refPrefix: "refs/tags/$prefix/"
+            refPrefix: "refs/tags/"
             orderBy: { field: TAG_COMMIT_DATE, direction: DESC }
             ) {
             nodes {
@@ -68,12 +69,12 @@ async function main () {
         }
       }
     `,
-    {
-      owner,
-      repo,
-      fetchLimit,
-      prefix
-    })
+      {
+        owner,
+        repo,
+        fetchLimit,
+      }
+    );
 
     const tagsList = _.get(tagsRaw, 'repository.refs.nodes', [])
     if (tagsList.length < 1) {
