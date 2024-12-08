@@ -52320,7 +52320,7 @@ async function main () {
           ) {
           refs(
             first: $fetchLimit
-            refPrefix: "refs/tags/"
+            refPrefix: "refs/tags/fcpy/"
             orderBy: { field: TAG_COMMIT_DATE, direction: DESC }
             ) {
             nodes {
