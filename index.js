@@ -42,50 +42,64 @@ async function main () {
 
   if (!fromTag) {
     // GET LATEST + PREVIOUS TAGS
-    core.info(`Fetching ${fetchLimit} latest tags...`);
-    const tagsRaw = await gh.graphql(
-      `
-      query lastTags (
-        $owner: String!
-        $repo: String!
-        $fetchLimit: Int
+    let hasNextPage = true;
+    let cursor = null;
+    let allTags = [];
+
+    while (hasNextPage) {
+      const tagsRaw = await gh.graphql(
+        `
+        query lastTags(
+          $owner: String!
+          $repo: String!
+          $fetchLimit: Int!
+          $cursor: String
         ) {
-        repository (
-          owner: $owner
-          name: $repo
-          ) {
-          refs(
-            first: $fetchLimit
-            refPrefix: "refs/tags/"
-            orderBy: { field: TAG_COMMIT_DATE, direction: DESC }
+          repository(owner: $owner, name: $repo) {
+            refs(
+              first: $fetchLimit
+              refPrefix: "refs/tags/"
+              orderBy: { field: TAG_COMMIT_DATE, direction: DESC }
+              after: $cursor
             ) {
-            nodes {
-              name
-              target {
-                oid
+              nodes {
+                name
+                target {
+                  oid
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
               }
             }
           }
         }
-      }
-    `,
-      {
-        owner,
-        repo,
-        fetchLimit,
-      }
-    );
-    core.info(`tags ${JSON.stringify(tagsRaw)}`);
-    const tagsList = _.get(tagsRaw, "repository.refs.nodes", []);
-    core.info(`tags ${tagsList.length}`);
-    if (tagsList.length < 1) {
+      `,
+        {
+          owner,
+          repo,
+          fetchLimit: Math.min(100, fetchLimit), // GitHub max per page is 100
+          cursor,
+        }
+      );
+
+      const newTags = _.get(tagsRaw, "repository.refs.nodes", []);
+      const pageInfo = _.get(tagsRaw, "repository.refs.pageInfo", {});
+
+      allTags.push(...newTags);
+      hasNextPage = pageInfo.hasNextPage && allTags.length < fetchLimit;
+      cursor = pageInfo.endCursor;
+    }
+
+    if (allTags.length < 1) {
       return core.setFailed(
         "Couldn't find the latest tag. Make sure you have at least one tag created first!"
       );
     }
 
     let idx = 0;
-    for (const tag of tagsList) {
+    for (const tag of allTags) {
       if (prefix) {
         core.info(`tags ${tag.name}`);
         if (tag.name.indexOf(prefix) === 0) {
