@@ -52339,7 +52339,7 @@ async function main () {
         fetchLimit,
       }
     );
-
+    core.info(`tags ${tagsRaw}`);
     const tagsList = _.get(tagsRaw, "repository.refs.nodes", []);
     if (tagsList.length < 1) {
       return core.setFailed(
