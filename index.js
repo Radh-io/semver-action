@@ -16,8 +16,8 @@ async function main () {
   const prefix = core.getInput('prefix') || ''
   const additionalCommits = core.getInput('additionalCommits').split('\n').map(l => l.trim()).filter(l => l !== '')
   const fromTag = core.getInput('fromTag')
-  const maxTagsToFetch = _.toSafeInteger(core.getInput('maxTagsToFetch') || 10)
-  const fetchLimit = (maxTagsToFetch < 1 || maxTagsToFetch > 100) ? 10 : maxTagsToFetch
+  const maxTagsToFetch = _.toSafeInteger(core.getInput('maxTagsToFetch') || 1000)
+  const fetchLimit = (maxTagsToFetch < 1 || maxTagsToFetch > 1000) ? 10 : maxTagsToFetch
 
   const bumpTypes = {
     major: core.getInput('majorList').split(',').map(p => p.trim()).filter(p => p),
@@ -29,9 +29,11 @@ async function main () {
   function outputVersion (version) {
     core.exportVariable('next', `${prefix}v${version}`)
     core.exportVariable('nextStrict', `${prefix}${version}`)
+    core.exportVariable('nextVer', `${version}`)
 
     core.setOutput('next', `${prefix}v${version}`)
     core.setOutput('nextStrict', `${prefix}${version}`)
+    core.setOutput('nextVer', `${prefix}${version}`)
     core.setOutput('nextMajor', `${prefix}v${semver.major(version)}`)
     core.setOutput('nextMajorStrict', `${prefix}${semver.major(version)}`)
   }
