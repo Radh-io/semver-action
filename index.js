@@ -55,7 +55,7 @@ async function main () {
           ) {
           refs(
             first: $fetchLimit
-            refPrefix: "refs/tags/"
+            refPrefix: "refs/tags/$prefix/"
             orderBy: { field: TAG_COMMIT_DATE, direction: DESC }
             ) {
             nodes {
@@ -71,7 +71,8 @@ async function main () {
     {
       owner,
       repo,
-      fetchLimit
+      fetchLimit,
+      prefix
     })
 
     const tagsList = _.get(tagsRaw, 'repository.refs.nodes', [])
