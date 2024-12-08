@@ -17,7 +17,7 @@ async function main () {
   const additionalCommits = core.getInput('additionalCommits').split('\n').map(l => l.trim()).filter(l => l !== '')
   const fromTag = core.getInput('fromTag')
   const maxTagsToFetch = _.toSafeInteger(core.getInput('maxTagsToFetch') || 1000)
-  const fetchLimit = (maxTagsToFetch < 1 || maxTagsToFetch > 1000) ? 10 : maxTagsToFetch
+  const fetchLimit = (maxTagsToFetch < 1 || maxTagsToFetch > 1000) ? 1000 : maxTagsToFetch
 
   const bumpTypes = {
     major: core.getInput('majorList').split(',').map(p => p.trim()).filter(p => p),
