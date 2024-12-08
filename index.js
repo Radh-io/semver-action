@@ -42,7 +42,7 @@ async function main () {
 
   if (!fromTag) {
     // GET LATEST + PREVIOUS TAGS
-
+    core.info(`Fetching ${fetchLimit} latest tags...`);
     const tagsRaw = await gh.graphql(
       `
       query lastTags (
@@ -76,34 +76,42 @@ async function main () {
       }
     );
 
-    const tagsList = _.get(tagsRaw, 'repository.refs.nodes', [])
+    const tagsList = _.get(tagsRaw, "repository.refs.nodes", []);
     if (tagsList.length < 1) {
-      return core.setFailed('Couldn\'t find the latest tag. Make sure you have at least one tag created first!')
+      return core.setFailed(
+        "Couldn't find the latest tag. Make sure you have at least one tag created first!"
+      );
     }
 
-    let idx = 0
+    let idx = 0;
     for (const tag of tagsList) {
       if (prefix) {
         if (tag.name.indexOf(prefix) === 0) {
-          tag.name = tag.name.replace(prefix, '')
+          tag.name = tag.name.replace(prefix, "");
         } else {
-          continue
+          continue;
         }
       }
       if (semver.valid(tag.name)) {
-        latestTag = tag
-        break
+        latestTag = tag;
+        break;
       } else if (idx === 0 && !skipInvalidTags) {
-        break
+        break;
       }
-      idx++
+      idx++;
     }
 
     if (!latestTag) {
       if (prefix) {
-        return core.setFailed(`None of the ${fetchLimit} latest tags are valid semver or match the specified prefix!`)
+        return core.setFailed(
+          `None of the ${fetchLimit} latest tags are valid semver or match the specified prefix(${prefix})!`
+        );
       } else {
-        return core.setFailed(skipInvalidTags ? `None of the ${fetchLimit} latest tags are valid semver!` : 'Latest tag is invalid (does not conform to semver)!')
+        return core.setFailed(
+          skipInvalidTags
+            ? `None of the ${fetchLimit} latest tags are valid semver!`
+            : "Latest tag is invalid (does not conform to semver)!"
+        );
       }
     }
 
