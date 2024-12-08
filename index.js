@@ -56,7 +56,7 @@ async function main () {
           ) {
           refs(
             first: $fetchLimit
-            refPrefix: "refs/tags/fcpy/"
+            refPrefix: "refs/tags/"
             orderBy: { field: TAG_COMMIT_DATE, direction: DESC }
             ) {
             nodes {
@@ -87,6 +87,7 @@ async function main () {
     let idx = 0;
     for (const tag of tagsList) {
       if (prefix) {
+        core.info(`tags ${tag.name}`);
         if (tag.name.indexOf(prefix) === 0) {
           tag.name = tag.name.replace(prefix, "");
         } else {
