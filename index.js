@@ -75,8 +75,9 @@ async function main () {
         fetchLimit,
       }
     );
-    core.info(`tags ${tagsRaw}`);
+    core.info(`tags ${JSON.stringify(tagsRaw)}`);
     const tagsList = _.get(tagsRaw, "repository.refs.nodes", []);
+    core.info(`tags ${tagsList.length}`);
     if (tagsList.length < 1) {
       return core.setFailed(
         "Couldn't find the latest tag. Make sure you have at least one tag created first!"
