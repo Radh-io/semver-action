@@ -52290,19 +52290,20 @@ async function main () {
     patchAll: (core.getInput('patchAll') === true || core.getInput('patchAll') === 'true')
   }
 
-  function outputVersion (version) {
-    core.exportVariable('next', `${prefix}v${version}`)
-    core.exportVariable('nextStrict', `${prefix}${version}`)
-    core.exportVariable('nextVer', `${version}`)
+  function outputVersion(prefix, version) {
+    core.info(`outputVersion ${prefix} ${version}`);
+    core.exportVariable("next", `${prefix}v${version}`);
+    core.exportVariable("nextStrict", `${prefix}${version}`);
+    core.exportVariable("nextVer", `${version}`);
 
-    core.setOutput('next', `${prefix}v${version}`)
-    core.setOutput('nextStrict', `${prefix}${version}`)
-    core.setOutput('nextVer', `${prefix}${version}`)
-    core.setOutput('nextMajor', `${prefix}v${semver.major(version)}`)
-    core.setOutput('nextMajorStrict', `${prefix}${semver.major(version)}`)
+    core.setOutput("next", `${prefix}v${version}`);
+    core.setOutput("nextStrict", `${prefix}${version}`);
+    core.setOutput("nextVer", `${version}`);
+    core.setOutput("nextMajor", `${prefix}v${semver.major(version)}`);
+    core.setOutput("nextMajorStrict", `${prefix}${semver.major(version)}`);
   }
 
-  let latestTag = null
+  let latestTag = null;
 
   if (!fromTag) {
     // GET LATEST + PREVIOUS TAGS
@@ -52363,16 +52364,19 @@ async function main () {
     }
 
     let idx = 0;
+    core.info(`tags:-`);
     for (const tag of allTags) {
       if (prefix) {
-        core.info(`tags ${tag.name}`);
+        core.info(`- ${tag.name}`);
         if (tag.name.indexOf(prefix) === 0) {
           tag.name = tag.name.replace(prefix, "");
+          core.info(`- ${tag.name}`);
         } else {
           continue;
         }
       }
       if (semver.valid(tag.name)) {
+        core.info(`- ${tag.name} is valid semver`);
         latestTag = tag;
         break;
       } else if (idx === 0 && !skipInvalidTags) {
@@ -52395,11 +52399,12 @@ async function main () {
       }
     }
 
-    core.info(`Comparing against latest tag: ${prefix}${latestTag.name}`)
+    core.info(`Comparing against latest tag: ${prefix}${latestTag.name}`);
   } else {
     // GET SPECIFIC TAG
-
-    const tagRaw = await gh.graphql(`
+    core.info(`Getting specific tag`);
+    const tagRaw = await gh.graphql(
+      `
       query singleTag ($owner: String!, $repo: String!, $tag: String!) {
         repository (owner: $owner, name: $repo) {
           ref(qualifiedName: $tag) {
@@ -52410,151 +52415,191 @@ async function main () {
           }
         }
       }
-    `, {
-      owner,
-      repo,
-      tag: `refs/tags/${prefix}${fromTag}`
-    })
+    `,
+      {
+        owner,
+        repo,
+        tag: `refs/tags/${prefix}${fromTag}`,
+      }
+    );
 
-    latestTag = _.get(tagRaw, 'repository.ref')
+    latestTag = _.get(tagRaw, "repository.ref");
 
     if (!latestTag) {
-      return core.setFailed('Provided tag could not be found!')
+      return core.setFailed("Provided tag could not be found!");
     }
     if (prefix && latestTag.name.indexOf(prefix) === 0) {
-      latestTag.name = latestTag.name.replace(prefix, '')
+      latestTag.name = latestTag.name.replace(prefix, "");
     }
     if (!semver.valid(latestTag.name)) {
-      return core.setFailed('Provided tag is invalid! (does not conform to semver)')
+      return core.setFailed(
+        "Provided tag is invalid! (does not conform to semver)"
+      );
     }
 
-    core.info(`Comparing against provided tag: ${prefix}${latestTag.name}`)
+    core.info(`Comparing against provided tag: ${prefix}${latestTag.name}`);
   }
 
   // OUTPUT CURRENT VARS
 
-  core.exportVariable('current', `${prefix}${latestTag.name}`)
-  core.setOutput('current', `${prefix}${latestTag.name}`)
+  core.exportVariable("current", `${prefix}${latestTag.name}`);
+  core.setOutput("current", `${prefix}${latestTag.name}`);
 
   // GET COMMITS
 
-  let curPage = 0
-  let totalCommits = 0
-  let hasMoreCommits = false
-  const commits = []
+  let curPage = 0;
+  let totalCommits = 0;
+  let hasMoreCommits = false;
+  const commits = [];
   do {
-    hasMoreCommits = false
-    curPage++
+    hasMoreCommits = false;
+    curPage++;
     const commitsRaw = await gh.rest.repos.compareCommitsWithBasehead({
       owner,
       repo,
       basehead: `${prefix}${latestTag.name}...${branch}`,
       page: curPage,
-      per_page: 100
-    })
-    totalCommits = _.get(commitsRaw, 'data.total_commits', 0)
-    const rangeCommits = _.get(commitsRaw, 'data.commits', [])
-    commits.push(...rangeCommits)
+      per_page: 100,
+    });
+    totalCommits = _.get(commitsRaw, "data.total_commits", 0);
+    const rangeCommits = _.get(commitsRaw, "data.commits", []);
+    commits.push(...rangeCommits);
     if ((curPage - 1) * 100 + rangeCommits.length < totalCommits) {
-      hasMoreCommits = true
+      hasMoreCommits = true;
     }
-  } while (hasMoreCommits)
+  } while (hasMoreCommits);
 
   if (additionalCommits && additionalCommits.length > 0) {
-    commits.push(...additionalCommits)
+    commits.push(...additionalCommits);
   }
 
   if (!commits || commits.length < 1) {
     switch (noNewCommitBehavior) {
-      case 'current': {
-        core.info(`Couldn't find any commits between branch HEAD and latest tag. Exiting with current as next version...`)
-        outputVersion(semver.clean(latestTag.name))
-        return
+      case "current": {
+        core.info(
+          `Couldn't find any commits between branch HEAD and latest tag. Exiting with current as next version...`
+        );
+        outputVersion(prefix, semver.clean(latestTag.name));
+        return;
       }
-      case 'silent': {
-        return core.info(`Couldn't find any commits between branch HEAD and latest tag. Exiting silently...`)
+      case "silent": {
+        return core.info(
+          `Couldn't find any commits between branch HEAD and latest tag. Exiting silently...`
+        );
       }
-      case 'warn': {
-        return core.warning(`Couldn't find any commits between branch HEAD and latest tag.`)
+      case "warn": {
+        return core.warning(
+          `Couldn't find any commits between branch HEAD and latest tag.`
+        );
       }
       default: {
-        return core.setFailed(`Couldn't find any commits between branch HEAD and latest tag.`)
+        return core.setFailed(
+          `Couldn't find any commits between branch HEAD and latest tag.`
+        );
       }
     }
   }
 
   // PARSE COMMITS
 
-  const majorChanges = []
-  const minorChanges = []
-  const patchChanges = []
+  const majorChanges = [];
+  const minorChanges = [];
+  const patchChanges = [];
   for (const commit of commits) {
     try {
-      const cAst = cc.toConventionalChangelogFormat(cc.parser(commit.commit.message))
+      const cAst = cc.toConventionalChangelogFormat(
+        cc.parser(commit.commit.message)
+      );
       if (bumpTypes.major.includes(cAst.type)) {
-        majorChanges.push(commit.commit.message)
-        core.info(`[MAJOR] Commit ${commit.sha} of type ${cAst.type} will cause a major version bump.`)
+        majorChanges.push(commit.commit.message);
+        core.info(
+          `[MAJOR] Commit ${commit.sha} of type ${cAst.type} will cause a major version bump.`
+        );
       } else if (bumpTypes.minor.includes(cAst.type)) {
-        minorChanges.push(commit.commit.message)
-        core.info(`[MINOR] Commit ${commit.sha} of type ${cAst.type} will cause a minor version bump.`)
+        minorChanges.push(commit.commit.message);
+        core.info(
+          `[MINOR] Commit ${commit.sha} of type ${cAst.type} will cause a minor version bump.`
+        );
       } else if (bumpTypes.patchAll || bumpTypes.patch.includes(cAst.type)) {
-        patchChanges.push(commit.commit.message)
-        core.info(`[PATCH] Commit ${commit.sha} of type ${cAst.type} will cause a patch version bump.`)
+        patchChanges.push(commit.commit.message);
+        core.info(
+          `[PATCH] Commit ${commit.sha} of type ${cAst.type} will cause a patch version bump.`
+        );
       } else {
-        core.info(`[SKIP] Commit ${commit.sha} of type ${cAst.type} will not cause any version bump.`)
+        core.info(
+          `[SKIP] Commit ${commit.sha} of type ${cAst.type} will not cause any version bump.`
+        );
       }
       for (const note of cAst.notes) {
-        if (note.title === 'BREAKING CHANGE') {
-          majorChanges.push(commit.commit.message)
-          core.info(`[MAJOR] Commit ${commit.sha} has a BREAKING CHANGE mention, causing a major version bump.`)
+        if (note.title === "BREAKING CHANGE") {
+          majorChanges.push(commit.commit.message);
+          core.info(
+            `[MAJOR] Commit ${commit.sha} has a BREAKING CHANGE mention, causing a major version bump.`
+          );
         }
       }
     } catch (err) {
-      core.info(`[INVALID] Skipping commit ${commit.sha} as it doesn't follow conventional commit format.`)
+      core.info(
+        `[INVALID] Skipping commit ${commit.sha} as it doesn't follow conventional commit format.`
+      );
     }
   }
 
-  let bump = null
+  let bump = null;
   if (majorChanges.length > 0) {
-    bump = 'major'
+    bump = "major";
   } else if (minorChanges.length > 0) {
-    bump = 'minor'
+    bump = "minor";
   } else if (patchChanges.length > 0) {
-    bump = 'patch'
+    bump = "patch";
   } else {
     switch (noVersionBumpBehavior) {
-      case 'current': {
-        core.info('No commit resulted in a version bump since last release! Exiting with current as next version...')
-        outputVersion(semver.clean(latestTag.name))
-        return
+      case "current": {
+        core.info(
+          "No commit resulted in a version bump since last release! Exiting with current as next version..."
+        );
+        outputVersion(prefix, semver.clean(latestTag.name));
+        return;
       }
-      case 'patch': {
-        core.info('No commit resulted in a version bump since last release! Defaulting to using PATCH...')
-        bump = 'patch'
-        break
+      case "patch": {
+        core.info(
+          "No commit resulted in a version bump since last release! Defaulting to using PATCH..."
+        );
+        bump = "patch";
+        break;
       }
-      case 'silent': {
-        return core.info('No commit resulted in a version bump since last release! Exiting silently...')
+      case "silent": {
+        return core.info(
+          "No commit resulted in a version bump since last release! Exiting silently..."
+        );
       }
-      case 'warn': {
-        return core.warning('No commit resulted in a version bump since last release!')
+      case "warn": {
+        return core.warning(
+          "No commit resulted in a version bump since last release!"
+        );
       }
       default: {
-        return core.setFailed('No commit resulted in a version bump since last release!')
+        return core.setFailed(
+          "No commit resulted in a version bump since last release!"
+        );
       }
     }
   }
-  core.info(`\n>>> Will bump version ${prefix}${latestTag.name} using ${bump.toUpperCase()}\n`)
-  core.setOutput('bump', bump || 'none')
+  core.info(
+    `\n>>> Will bump version ${prefix}${
+      latestTag.name
+    } using ${bump.toUpperCase()}\n`
+  );
+  core.setOutput("bump", bump || "none");
 
   // BUMP VERSION
 
-  const next = semver.inc(latestTag.name, bump)
+  const next = semver.inc(latestTag.name, bump);
 
-  core.info(`Current version is ${prefix}${latestTag.name}`)
-  core.info(`Next version is ${prefix}v${next}`)
+  core.info(`Current version is ${prefix}${latestTag.name}`);
+  core.info(`Next version is ${prefix}v${next}`);
 
-  outputVersion(next)
+  outputVersion(prefix, next);
 }
 
 main()
